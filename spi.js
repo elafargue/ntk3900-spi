@@ -186,6 +186,13 @@ Spi.prototype.loopback = function(loop) {
 	return this._spi['loopback']();
 }
 
+Spi.prototype.wrPin = function(pin) {
+    if (typeof(pin) != 'undefined') {
+        this._spi['wrpin'](pin);
+    } else
+    return this._spi['wrpin']();
+}
+
 module.exports.MODE = MODE;
 module.exports.CS = CS;
 module.exports.ORDER = ORDER;

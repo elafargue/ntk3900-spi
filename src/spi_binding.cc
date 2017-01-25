@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/mman.h>
+
 
 #ifdef __linux__
   #include <sys/ioctl.h>
@@ -65,7 +67,8 @@ void Spi::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "maxSpeed", GetSetMaxSpeed);
   NODE_SET_PROTOTYPE_METHOD(t, "halfDuplex", GetSet3Wire);
   NODE_SET_PROTOTYPE_METHOD(t, "delay", GetSetDelay);
-  NODE_SET_PROTOTYPE_METHOD(t, "lookback", GetSetLoop);
+  NODE_SET_PROTOTYPE_METHOD(t, "loopback", GetSetLoop);
+  NODE_SET_PROTOTYPE_METHOD(t, "wrPin", GetSetWrPin);
 
   // var constructor = t; // in context of new.
   constructor.Reset(isolate, t->GetFunction());
@@ -124,6 +127,38 @@ void Spi::Open(const FunctionCallbackInfo<Value>& args) {
   SET_IOCTL_VALUE(self->m_fd, SPI_IOC_WR_MODE, self->m_mode);
   SET_IOCTL_VALUE(self->m_fd, SPI_IOC_WR_BITS_PER_WORD, self->m_bits_per_word);
   SET_IOCTL_VALUE(self->m_fd, SPI_IOC_WR_MAX_SPEED_HZ, self->m_max_speed);
+
+  // Setup the GPIO pin as well
+  int mem_fd;
+  /* open /dev/mem */
+   if ((mem_fd = open("/dev/mem", O_RDWR|O_SYNC) ) < 0) {
+      EXCEPTION("can't open /dev/mem");
+      return;
+   }
+ 
+   /* mmap GPIO */
+   gpio_map = mmap(
+      NULL,             //Any adddress in our space will do
+      BLOCK_SIZE,       //Map length
+      PROT_READ|PROT_WRITE,// Enable reading & writting to mapped memory
+      MAP_SHARED,       //Shared with other processes
+      mem_fd,           //File to map
+      GPIO_BASE         //Offset to GPIO peripheral
+   );
+ 
+   close(mem_fd); //No need to keep mem_fd open after mmap
+ 
+   if (gpio_map == MAP_FAILED) {
+      EXCEPTION("mmap error");//errno also set!
+      
+   }
+ 
+   // Always use volatile pointer!
+   gpio = (volatile unsigned *)gpio_map;
+
+   INP_GPIO(self->m_wr_pin);
+   OUT_GPIO(self->m_wr_pin);
+ 
 
   FUNCTION_CHAIN;
 }
@@ -189,6 +224,7 @@ void Spi::full_duplex_transfer(
   uint16_t delay,
   uint8_t bits
 ) {
+  Spi* self = ObjectWrap::Unwrap<Spi>(args.This());
   struct spi_ioc_transfer data = {
 	  (unsigned long)write,
 	  (unsigned long)read,
@@ -198,7 +234,10 @@ void Spi::full_duplex_transfer(
 	  bits
   };
 
+  GPIO_CLR = 1 << self->m_wr_pin;
   int ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
+  GPIO_SET = 1 << self->m_wr_pin;
+  usleep(15);
 
   if (ret == -1) {
     EXCEPTION("Unable to send SPI message");
@@ -283,6 +322,22 @@ SPI_FUNC_IMPL(GetSetMaxSpeed) {
 
   FUNCTION_CHAIN;
 }
+
+SPI_FUNC_IMPL(GetSetWrPin) {
+  FUNCTION_PREAMBLE;
+
+  if (self->get_if_no_args(isolate, args, 0, (unsigned int)self->m_wr_pin)) { return; }
+
+  int in_value;
+  if (!self->get_argument_greater_than(isolate, args, 0, 0, in_value)) { return; }
+  ASSERT_NOT_OPEN;
+
+  // TODO: Bounds Checking? Need to look up what the max value is
+  self->m_wr_pin = in_value;
+
+  FUNCTION_CHAIN;
+}
+
 
 SPI_FUNC_IMPL(GetSet3Wire) {
   FUNCTION_PREAMBLE;
