@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 
 
 #ifdef __linux__
@@ -40,6 +41,19 @@ extern "C" {
   void init (Handle<Object> target) {
     Spi::Initialize(target);
   }
+
+  void delayMicrosecondsHard (unsigned int howLong)
+ {
+   struct timeval tNow, tLong, tEnd ;
+ 
+   gettimeofday (&tNow, NULL) ;
+   tLong.tv_sec  = howLong / 1000000 ;
+   tLong.tv_usec = howLong % 1000000 ;
+   timeradd (&tNow, &tLong, &tEnd) ;
+ 
+   while (timercmp (&tNow, &tEnd, <))
+     gettimeofday (&tNow, NULL) ;
+ }
 
   NODE_MODULE(_spi, init)
 }
@@ -228,21 +242,24 @@ void Spi::full_duplex_transfer(
   struct spi_ioc_transfer data = {
 	  (unsigned long)write,
 	  (unsigned long)read,
-	  length,
+	  1,
 	  speed,
 	  delay, // Still unsure ... just expose to options.
 	  bits
   };
-
-  GPIO_CLR = 1 << self->m_wr_pin;
-  int ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
-  GPIO_SET = 1 << self->m_wr_pin;
-  usleep(15);
-
-  if (ret == -1) {
-    EXCEPTION("Unable to send SPI message");
-    return;
+  int ret =0;
+  // Now send byte by byte for the whole buffer
+  while (length--) {
+    GPIO_CLR = 1 << self->m_wr_pin;
+    ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
+    GPIO_SET = 1 << self->m_wr_pin;
+    delayMicrosecondsHard(18);
+    data.tx_buf++;
   }
+    if (ret == -1) {
+      EXCEPTION("Unable to send SPI message");
+      return;
+    }
 
   args.GetReturnValue().Set(ret);
 }
