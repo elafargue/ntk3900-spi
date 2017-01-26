@@ -248,18 +248,26 @@ void Spi::full_duplex_transfer(
 	  bits
   };
   int ret =0;
+  int idx = 0;
+  GPIO_SET = 1 << self->m_wr_pin;
+  delayMicrosecondsHard(15);
   // Now send byte by byte for the whole buffer
   while (length--) {
-    GPIO_CLR = 1 << self->m_wr_pin;
     ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
+    GPIO_CLR = 1 << self->m_wr_pin;
+    if (idx++ < 0xf)
+      delayMicrosecondsHard(80);
+//    else 
+//      delayMicrosecondsHard(2);
     GPIO_SET = 1 << self->m_wr_pin;
-    delayMicrosecondsHard(18);
+    //delayMicrosecondsHard(5);
     data.tx_buf++;
+   }
+
+  if (ret == -1) {
+    EXCEPTION("Unable to send SPI message");
+    return;
   }
-    if (ret == -1) {
-      EXCEPTION("Unable to send SPI message");
-      return;
-    }
 
   args.GetReturnValue().Set(ret);
 }
