@@ -250,13 +250,16 @@ void Spi::full_duplex_transfer(
   int ret =0;
   int idx = 0;
   GPIO_SET = 1 << self->m_wr_pin;
-  delayMicrosecondsHard(15);
+  //delayMicrosecondsHard(15);
   // Now send byte by byte for the whole buffer
   while (length--) {
     ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
     GPIO_CLR = 1 << self->m_wr_pin;
-    if (idx++ < 0xf)
-      delayMicrosecondsHard(80);
+    // Was a hard one to crack: somehow the 256x128 display needs
+    // the command itself to be sent with a much more relaxed timing
+    // even in Graphic DMA mode. No idea why.
+    if (idx++ < 0x9) // Works for the send bitmap command
+      delayMicrosecondsHard(60); // Tested to be the strict minimum
 //    else 
 //      delayMicrosecondsHard(2);
     GPIO_SET = 1 << self->m_wr_pin;

@@ -1,43 +1,32 @@
-node-spi
+ntk3900-spi
 ========
 
-A NodeJS interface to the SPI bus typically found on embedded linux machines
-such as the Raspberry Pi.
-
-There is a native interface and a wrapped JS interface with a slightly
-better API.
-
-If you have a project that uses node-spi, please consider adding a link to your project on the wiki:
-
-https://github.com/RussTheAerialist/node-spi/wiki/Projects-that-use-node-spi
-
-The following versions exist
-
-* node-spi 0.1.x - node 0.10.x
-* node-spi 0.2 - node 0.12.x
+This is a fork of the node-spi code, customized to drive Noritake 3900 series VFD displays in 
+"Graphic DMA" mode. The parallel port of the display needs to be interfaced to the Raspberry Pi
+using a 74HC595, and two pins need to be defined when instanciating the ntk-3900 SPI object: the
+"!WR" pin, and the "RDY" pin - only for 3900 series.
 
 
 Basic Usage
 ===========
 
 ```javascript
-var SPI = require('spi');
+var SPI = require('ntk3900-spi');
 
 var spi = new SPI.Spi('/dev/spidev0.0', {
-    'mode': SPI.MODE['MODE_0'],  // always set mode as the first option
-    'chipSelect': SPI.CS['none'] // 'none', 'high' - defaults to low
+    'mode': SPI.MODE['MODE_3'],  // always set mode as the first option
+    'chipSelect': SPI.CS['low'] // 'none', 'high' - defaults to low
+    'wrPin': 23,   // The Pin connected to the "!WR" input on the display
+    'maxSpeed': 4000000  // Tested to 4MHz - the 595 can take 100MHz
   }, function(s){s.open();});
 
-var txbuf = new Buffer([ 0x23, 0x48, 0xAF, 0x19, 0x19, 0x19 ]);
-var rxbuf = new Buffer([ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ]);
+   var queue = [ 0x02, 0x44, 0x00, ... etc etc etc ];
 
-spi.transfer(txbuf, rxbuf, function(device, buf) {
-    // rxbuf and buf should be the same here
-    var s = "";
-    for (var i=0; i < buf.length; i++)
-        s = s + buf[i] + " ";
-        console.log(s + "- " + new Date().getTime());
-  });
+    spi.write( new Buffer(queue), function () {
+        queue = [];
+        
+    });
+
 ```
 
 How you should **really** use the library
