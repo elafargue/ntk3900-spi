@@ -83,6 +83,8 @@ void Spi::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "delay", GetSetDelay);
   NODE_SET_PROTOTYPE_METHOD(t, "loopback", GetSetLoop);
   NODE_SET_PROTOTYPE_METHOD(t, "wrPin", GetSetWrPin);
+  NODE_SET_PROTOTYPE_METHOD(t, "rdyPin", GetSetRdyPin);
+  NODE_SET_PROTOTYPE_METHOD(t, "bSeries", GetSetbSeries);
 
   // var constructor = t; // in context of new.
   constructor.Reset(isolate, t->GetFunction());
@@ -172,7 +174,14 @@ void Spi::Open(const FunctionCallbackInfo<Value>& args) {
 
    INP_GPIO(self->m_wr_pin);
    OUT_GPIO(self->m_wr_pin);
- 
+
+   INP_GPIO(self->m_rdy_pin);
+   GPIO_PULL = 2;
+   delayMicrosecondsHard(5);
+   GPIO_PULLCLK0 = 1 << self->m_rdy_pin;
+   delayMicrosecondsHard(5);
+   GPIO_PULL = 0;
+   GPIO_PULLCLK0 = 0;   
 
   FUNCTION_CHAIN;
 }
@@ -260,9 +269,17 @@ void Spi::full_duplex_transfer(
     // even in Graphic DMA mode. No idea why.
     if (idx++ < 0x9) // Works for the send bitmap command
       delayMicrosecondsHard(60); // Tested to be the strict minimum
-//    else 
-//      delayMicrosecondsHard(2);
+
     GPIO_SET = 1 << self->m_wr_pin;
+    if (!self->m_bseries)
+      delayMicrosecondsHard(65);
+
+
+      // My setup does not read the "RDY" pin, unfortunately, because
+      // my bidirectional buffer does not cope open open collector outputs :(
+        // The microsecondsHard delay of 65 uS is reliable, though.
+    //if (!self->m_bseries)
+    //  while(!GET_GPIO(self->m_rdy_pin));
     //delayMicrosecondsHard(5);
     data.tx_buf++;
    }
@@ -365,6 +382,35 @@ SPI_FUNC_IMPL(GetSetWrPin) {
 
   FUNCTION_CHAIN;
 }
+
+SPI_FUNC_IMPL(GetSetRdyPin) {
+  FUNCTION_PREAMBLE;
+
+  if (self->get_if_no_args(isolate, args, 0, (unsigned int)self->m_rdy_pin)) { return; }
+
+  int in_value;
+  if (!self->get_argument_greater_than(isolate, args, 0, 0, in_value)) { return; }
+  ASSERT_NOT_OPEN;
+
+  // TODO: Bounds Checking? Need to look up what the max value is
+  self->m_rdy_pin = in_value;
+
+  FUNCTION_CHAIN;
+}
+
+SPI_FUNC_IMPL(GetSetbSeries) {
+  FUNCTION_PREAMBLE;
+
+  if (self->get_if_no_args(isolate, args, 0, self->m_bseries)) { return; }
+
+  bool in_value;
+  if (!self->get_argument(isolate, args, 0, in_value)) { return; }
+
+  self->m_bseries = in_value;
+
+  FUNCTION_CHAIN;
+}
+
 
 
 SPI_FUNC_IMPL(GetSet3Wire) {

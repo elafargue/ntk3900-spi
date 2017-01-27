@@ -81,6 +81,8 @@ class Spi : public ObjectWrap {
         SPI_FUNC(GetSetBitOrder);
         SPI_FUNC(GetSetBitsPerWord);
         SPI_FUNC(GetSetWrPin);
+        SPI_FUNC(GetSetRdyPin);
+        SPI_FUNC(GetSetbSeries);
 
         void full_duplex_transfer(Isolate* isolate, const FunctionCallbackInfo<Value> &args, char *write, char *read, size_t length, uint32_t speed, uint16_t delay, uint8_t bits);
         bool require_arguments(Isolate* isolate, const FunctionCallbackInfo<Value>& args, int count);
@@ -98,6 +100,8 @@ class Spi : public ObjectWrap {
         uint16_t m_delay;
         uint8_t m_bits_per_word;
         uint8_t m_wr_pin;
+        uint8_t m_rdy_pin;
+        bool m_bseries;
 };
 
 #define EXCEPTION(X) isolate->ThrowException(Exception::TypeError(String::NewFromUtf8(isolate, X)))

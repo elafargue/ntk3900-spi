@@ -193,6 +193,21 @@ Spi.prototype.wrPin = function(pin) {
     return this._spi['wrpin']();
 }
 
+Spi.prototype.rdyPin = function(pin) {
+    if (typeof(pin) != 'undefined') {
+        this._spi['rdyPpin'](pin);
+    } else
+    return this._spi['rdyPin']();
+}
+
+Spi.prototype.bSeries = function(pin) {
+    if (typeof(pin) != 'undefined') {
+        this._spi['bSeries'](pin);
+    } else
+    return this._spi['bSeries']();
+}
+
+
 module.exports.MODE = MODE;
 module.exports.CS = CS;
 module.exports.ORDER = ORDER;
