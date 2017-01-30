@@ -176,12 +176,12 @@ void Spi::Open(const FunctionCallbackInfo<Value>& args) {
    OUT_GPIO(self->m_wr_pin);
 
    INP_GPIO(self->m_rdy_pin);
-   GPIO_PULL = 2;
-   delayMicrosecondsHard(5);
-   GPIO_PULLCLK0 = 1 << self->m_rdy_pin;
-   delayMicrosecondsHard(5);
-   GPIO_PULL = 0;
-   GPIO_PULLCLK0 = 0;   
+//   GPIO_PULL = 2;
+//   delayMicrosecondsHard(5);
+//   GPIO_PULLCLK0 = 1 << self->m_rdy_pin;
+//   delayMicrosecondsHard(5);
+//   GPIO_PULL = 0;
+//   GPIO_PULLCLK0 = 0;   
 
   FUNCTION_CHAIN;
 }
@@ -267,20 +267,21 @@ void Spi::full_duplex_transfer(
     // Was a hard one to crack: somehow the 256x128 display needs
     // the command itself to be sent with a much more relaxed timing
     // even in Graphic DMA mode. No idea why.
-    if (idx++ < 0x9) // Works for the send bitmap command
-      delayMicrosecondsHard(60); // Tested to be the strict minimum
+    if (idx++ < 0x9) // Works for the send bitmap command which is the longest
+      delayMicrosecondsHard(self->m_bseries ? 60 : 120); // Tested to be the strict minimum
 
     GPIO_SET = 1 << self->m_wr_pin;
+
+    // If we don't have a circuit to read the RDY pin, then
+    // the delay below works fine:
+//    if (!self->m_bseries)
+//      delayMicrosecondsHard(30);
+
+    // If we have a circuit to read the Rdy pin, then we
+    // do it in the while loop below:
     if (!self->m_bseries)
-      delayMicrosecondsHard(65);
-
-
-      // My setup does not read the "RDY" pin, unfortunately, because
-      // my bidirectional buffer does not cope open open collector outputs :(
-        // The microsecondsHard delay of 65 uS is reliable, though.
-    //if (!self->m_bseries)
-    //  while(!GET_GPIO(self->m_rdy_pin));
-    //delayMicrosecondsHard(5);
+      while(!GET_GPIO(self->m_rdy_pin));
+    
     data.tx_buf++;
    }
 
