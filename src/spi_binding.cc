@@ -253,34 +253,48 @@ void Spi::full_duplex_transfer(
 	  (unsigned long)read,
 	  1,
 	  speed,
-	  delay, // Still unsure ... just expose to options.
-	  bits
+	  delay,
+	  bits,
+    0,   // cs_change
+    0,  // tx_nbits
+    0,  // rx_nbits
+    0   // pad
   };
+
   int ret =0;
   int idx = 0;
   GPIO_SET = 1 << self->m_wr_pin;
-  //delayMicrosecondsHard(15);
+  if (!self->m_bseries) {
+    while(!GET_GPIO(self->m_rdy_pin));
+  }
   // Now send byte by byte for the whole buffer
   while (length--) {
-    ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
     GPIO_CLR = 1 << self->m_wr_pin;
+    ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
     // Was a hard one to crack: somehow the 256x128 display needs
     // the command itself to be sent with a much more relaxed timing
     // even in Graphic DMA mode. No idea why.
-    if (idx++ < 0x9) // Works for the send bitmap command which is the longest
-      delayMicrosecondsHard(self->m_bseries ? 60 : 120); // Tested to be the strict minimum
+    if (self->m_bseries) {
+      if (idx++ < 0x09)
+        delayMicrosecondsHard(60); // Strict minimum: 60
+    } else {
+      if (idx++ < 0x09)
+        delayMicrosecondsHard(120); // Strict minimum: 120
+    }
 
     GPIO_SET = 1 << self->m_wr_pin;
 
     // If we don't have a circuit to read the RDY pin, then
     // the delay below works fine:
-//    if (!self->m_bseries)
-//      delayMicrosecondsHard(30);
+    //    if (!self->m_bseries)
+    //      delayMicrosecondsHard(30);
 
     // If we have a circuit to read the Rdy pin, then we
     // do it in the while loop below:
-    if (!self->m_bseries)
+    if (!self->m_bseries) {
       while(!GET_GPIO(self->m_rdy_pin));
+    }
+    delayMicrosecondsHard(15);
     
     data.tx_buf++;
    }
