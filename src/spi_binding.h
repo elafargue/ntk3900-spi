@@ -99,8 +99,8 @@ class Spi : public ObjectWrap {
         uint32_t m_max_speed;
         uint16_t m_delay;
         uint8_t m_bits_per_word;
-        uint8_t m_wr_pin;
-        uint8_t m_rdy_pin;
+        uint32_t m_wr_pin;
+        uint32_t m_rdy_pin;
         bool m_bseries;
 };
 
