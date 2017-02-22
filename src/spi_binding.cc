@@ -168,6 +168,8 @@ void Spi::Open(const FunctionCallbackInfo<Value>& args) {
       EXCEPTION("mmap error");//errno also set!
       
    }
+
+   printf("Ready pin: %u", self->m_rdy_pin);
  
    // Always use volatile pointer!
    gpio = (volatile unsigned *)gpio_map;
@@ -176,12 +178,13 @@ void Spi::Open(const FunctionCallbackInfo<Value>& args) {
    OUT_GPIO(self->m_wr_pin);
 
    INP_GPIO(self->m_rdy_pin);
-//   GPIO_PULL = 2;
-//   delayMicrosecondsHard(5);
-//   GPIO_PULLCLK0 = 1 << self->m_rdy_pin;
-//   delayMicrosecondsHard(5);
-//   GPIO_PULL = 0;
-//   GPIO_PULLCLK0 = 0;   
+   // Enable pulldown on Ready pin:
+   GPIO_PULL = 1;
+   delayMicrosecondsHard(5);
+   GPIO_PULLCLK0 = 1 << self->m_rdy_pin;
+   delayMicrosecondsHard(5);
+   GPIO_PULL = 0;
+   GPIO_PULLCLK0 = 0;   
 
   FUNCTION_CHAIN;
 }
@@ -269,32 +272,25 @@ void Spi::full_duplex_transfer(
   }
   // Now send byte by byte for the whole buffer
   while (length--) {
-    GPIO_CLR = 1 << self->m_wr_pin;
     ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
-    // Was a hard one to crack: somehow the 256x128 display needs
-    // the command itself to be sent with a much more relaxed timing
-    // even in Graphic DMA mode. No idea why.
-    if (self->m_bseries) {
-      if (idx++ < 0x09)
-        delayMicrosecondsHard(60); // Strict minimum: 60
-    } else {
-      if (idx++ < 0x09)
-        delayMicrosecondsHard(120); // Strict minimum: 120
-    }
-
+    GPIO_CLR = 1 << self->m_wr_pin;
+    // Noritake displays are fine with super short WR pulses,
+    // specs say 100ns is the right timing.
     GPIO_SET = 1 << self->m_wr_pin;
+    // The RDY line can take up to 500ns to do down,
+    // so we need to wait before reading it:
+    delayMicrosecondsHard(1); 
 
-    // If we don't have a circuit to read the RDY pin, then
-    // the delay below works fine:
-    //    if (!self->m_bseries)
-    //      delayMicrosecondsHard(30);
+    // It looks like even B-series displays use the RDY
+    // pin in DMA mode (doc says the opposite?)
+    //if (!self->m_bseries) {
+      while(GET_GPIO(self->m_rdy_pin) == 0) {
+      };
+    //}
 
-    // If we have a circuit to read the Rdy pin, then we
-    // do it in the while loop below:
-    if (!self->m_bseries) {
-      while(!GET_GPIO(self->m_rdy_pin));
-    }
-    delayMicrosecondsHard(15);
+    // After experimentation, this delay is not necessary,
+    // especially with the delay introduced by the SPI transfer
+    // delayMicrosecondsHard(15);
     
     data.tx_buf++;
    }
