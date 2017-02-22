@@ -200,6 +200,13 @@ Spi.prototype.rdyPin = function(pin) {
     return this._spi['rdyPin']();
 }
 
+Spi.prototype.invertRdy = function(flag) {
+    if (typeof(flag) != 'undefined') {
+        this._spi['invertRdy'](flag);
+    } else
+    return this._spi['invertRdy']();
+}
+
 Spi.prototype.bSeries = function(pin) {
     if (typeof(pin) != 'undefined') {
         this._spi['bSeries'](pin);

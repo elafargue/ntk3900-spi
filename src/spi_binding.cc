@@ -84,6 +84,7 @@ void Spi::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "loopback", GetSetLoop);
   NODE_SET_PROTOTYPE_METHOD(t, "wrPin", GetSetWrPin);
   NODE_SET_PROTOTYPE_METHOD(t, "rdyPin", GetSetRdyPin);
+  NODE_SET_PROTOTYPE_METHOD(t, "invertRdy", GetSetInvertRdy);
   NODE_SET_PROTOTYPE_METHOD(t, "bSeries", GetSetbSeries);
 
   // var constructor = t; // in context of new.
@@ -265,32 +266,37 @@ void Spi::full_duplex_transfer(
   };
 
   int ret =0;
-  int idx = 0;
+
   GPIO_SET = 1 << self->m_wr_pin;
-  if (!self->m_bseries) {
-    while(!GET_GPIO(self->m_rdy_pin));
-  }
+
+  if (self->m_invert_rdy) {
+    while(GET_GPIO(self->m_rdy_pin)){};
+  } else {
+    while(!GET_GPIO(self->m_rdy_pin)){};
+  }  
+
   // Now send byte by byte for the whole buffer
   while (length--) {
     ret = ioctl(this->m_fd, SPI_IOC_MESSAGE(1), &data);
-    GPIO_CLR = 1 << self->m_wr_pin;
-    // Noritake displays are fine with super short WR pulses,
-    // specs say 100ns is the right timing.
-    GPIO_SET = 1 << self->m_wr_pin;
-    // The RDY line can take up to 500ns to do down,
-    // so we need to wait before reading it:
-    delayMicrosecondsHard(1); 
 
-    // It looks like even B-series displays use the RDY
-    // pin in DMA mode (doc says the opposite?)
-    //if (!self->m_bseries) {
-      while(GET_GPIO(self->m_rdy_pin) == 0) {
-      };
-    //}
+    if (self->m_wr_pin) {
+      GPIO_CLR = 1 << self->m_wr_pin;
+      GPIO_SET = 1 << self->m_wr_pin;
+    }
 
-    // After experimentation, this delay is not necessary,
-    // especially with the delay introduced by the SPI transfer
-    // delayMicrosecondsHard(15);
+    if (self->m_invert_rdy) {
+      //For Series 7000 displays, the busy pin (spec says 20us max!)
+      // can take a while to go up, so we have to add this delay. 10us
+      // works well in practice.
+      delayMicrosecondsHard(10); 
+      while(GET_GPIO(self->m_rdy_pin)){};
+    } else {
+      // The RDY line can take up to 500ns to do down,
+      // so we need to wait before reading it:
+      delayMicrosecondsHard(1); 
+      while(!GET_GPIO(self->m_rdy_pin)){};
+    }
+    //delayMicrosecondsHard(15);
     
     data.tx_buf++;
    }
@@ -408,6 +414,20 @@ SPI_FUNC_IMPL(GetSetRdyPin) {
 
   FUNCTION_CHAIN;
 }
+
+SPI_FUNC_IMPL(GetSetInvertRdy) {
+  FUNCTION_PREAMBLE;
+
+  if (self->get_if_no_args(isolate, args, 0, self->m_invert_rdy)) { return; }
+
+  bool in_value;
+  if (!self->get_argument(isolate, args, 0, in_value)) { return; }
+
+  self->m_invert_rdy = in_value;
+
+  FUNCTION_CHAIN;
+}
+
 
 SPI_FUNC_IMPL(GetSetbSeries) {
   FUNCTION_PREAMBLE;
