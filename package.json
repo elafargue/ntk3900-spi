@@ -1,14 +1,14 @@
 {
-   "name": "ntk3900-spi",
-   "version": "0.2.0",
-   "description": "JS Interface for Noritake 3900(B) displays",
-   "author": "Russell Hay <me@russellhay.com>, Ed Lafargue <ed@wizkers.io>",
-   "repository": {
-     "type": "git",
-     "url": "git://github.com/elafargue/ntk3900-spi.git"
-   },
-   "main": "./spi",
-   "dependencies": {
-     "bindings": "*"
-   }
+  "name": "ntk3900-spi",
+  "version": "0.3.0",
+  "description": "JS Interface for Noritake 3900(B) displays",
+  "author": "Russell Hay <me@russellhay.com>, Ed Lafargue <ed@wizkers.io>",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/elafargue/ntk3900-spi.git"
+  },
+  "main": "./spi",
+  "dependencies": {
+    "bindings": "*"
+  }
 }
