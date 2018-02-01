@@ -1,8 +1,10 @@
 /*
     Copyright (c) 2012, Russell Hay <me@russellhay.com>
+
     Permission to use, copy, modify, and/or distribute this software for any
     purpose with or without fee is hereby granted, provided that the above
     copyright notice and this permission notice appear in all copies.
+
     THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
     WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
     MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
@@ -61,7 +63,11 @@ class Spi : public ObjectWrap {
 	        m_mode(0),
 	        m_max_speed(1000000),  // default speed in Hz () 1MHz
 	        m_delay(0),            // expose delay to options
-	        m_bits_per_word(8) { } // default bits per word
+	        m_bits_per_word(8),    // default bits per word
+                m_wr_pin(0),
+                m_rdy_pin(0),
+                m_invert_rdy(false) {}   // RDY is RDY, not BUSY
+
 
 
           ~Spi() { } // Probably close fd if it's open
@@ -80,8 +86,8 @@ class Spi : public ObjectWrap {
         SPI_FUNC(GetSetBitsPerWord);
         SPI_FUNC(GetSetWrPin);
         SPI_FUNC(GetSetRdyPin);
-        SPI_FUNC(GetSetbSeries);
         SPI_FUNC(GetSetInvertRdy);
+        SPI_FUNC(GetSetbSeries);
 
         void full_duplex_transfer(Isolate* isolate, const FunctionCallbackInfo<Value> &args, char *write, char *read, size_t length, uint32_t speed, uint16_t delay, uint8_t bits);
         bool require_arguments(Isolate* isolate, const FunctionCallbackInfo<Value>& args, int count);
@@ -100,8 +106,8 @@ class Spi : public ObjectWrap {
         uint8_t m_bits_per_word;
         uint32_t m_wr_pin;
         uint32_t m_rdy_pin;
-        bool m_invert_rdy;
         bool m_bseries;
+        bool m_invert_rdy;
 };
 
 #define EXCEPTION(X) isolate->ThrowException(Exception::TypeError(String::NewFromUtf8(isolate, X)))
